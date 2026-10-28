@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>煦和日语 · 日语考研院校专业查询（2027）</title>
+<title>煦和日语 · 考研日语203 · 院校专业查询（2027）</title>
 <style>
 :root{--bg:#f5f6fa;--card:#fff;--ink:#1c2230;--muted:#596173;--line:#dfe3ec;--accent:#b8322a;--accent-soft:#fbecea;--focus:#1a5fd0;--mark:#ffe08a}
 *{box-sizing:border-box}
@@ -165,12 +165,23 @@ tbody tr:hover{background:#fafbfd}
   .noticeDlg .ndlg-body{padding:18px 16px 22px;}
   .ncont .contact img{width:160px;}
 }
+
+.notice{padding:0;overflow:hidden}
+.ncont h2.nfold-h{margin:0;font-size:16px}
+.nfold-btn{display:flex;align-items:center;gap:8px;width:100%;padding:14px 18px;background:none;border:0;text-align:left;font:inherit;font-weight:700;color:var(--ink);cursor:pointer}
+.nfold-btn:hover{background:#fafbfd}
+.nfold-t{flex:1}
+.nfold-hint{font-size:13px;font-weight:400;color:var(--muted)}
+.nfold-arrow{width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:0 4px 3px 2px}
+.nfold-btn[aria-expanded=true] .nfold-arrow{transform:rotate(-135deg);margin-bottom:-3px}
+@media (prefers-reduced-motion:no-preference){.nfold-arrow{transition:transform .15s}}
+.nfold-body{padding:0 18px 18px}
 </style>
 </head>
 <body>
 <a class="skip" href="#results">跳到查询结果</a>
 <header class="top"><div class="wrap">
-  <h1><span class="dot" aria-hidden="true"></span>日语考研 · 院校专业查询</h1>
+  <h1><span class="dot" aria-hidden="true"></span>考研日语203 · 院校专业查询</h1>
   <p>煦和日语内部整理资料，供学生查询使用</p>
   <p id="meta">数据来源：煦和日语内部整理</p>
 </div></header>
@@ -494,10 +505,22 @@ tbody tr:hover{background:#fafbfd}
   /* 页面内公告条（header 下方小卡片）*/
   function fillBox(d){
     if(!d||d.show===false){box.hidden=true;return;}
-    var h2=el("h2");var ic=el("span",null,"\uD83D\uDCE2 ");ic.setAttribute("aria-hidden","true");
-    h2.appendChild(ic);h2.appendChild(document.createTextNode(d.title||"公告"));
-    var nodes=[h2].concat(buildNodes(d));
-    fill(box,nodes);box.hidden=false;
+    var open=box.getAttribute("data-open")==="1";
+    var h2=el("h2","nfold-h");
+    var btn=el("button","nfold-btn");btn.type="button";btn.setAttribute("aria-expanded",open?"true":"false");btn.setAttribute("aria-controls","noticeBody");
+    var ic=el("span",null,"\uD83D\uDCE2 ");ic.setAttribute("aria-hidden","true");
+    btn.appendChild(ic);btn.appendChild(el("span","nfold-t",d.title||"公告"));
+    var hint=el("span","nfold-hint",open?"收起":"展开");btn.appendChild(hint);
+    var arrow=el("span","nfold-arrow");arrow.setAttribute("aria-hidden","true");btn.appendChild(arrow);
+    h2.appendChild(btn);
+    var body=el("div","nfold-body");body.id="noticeBody";body.hidden=!open;
+    buildNodes(d).forEach(function(n){body.appendChild(n);});
+    btn.addEventListener("click",function(){
+      var o=btn.getAttribute("aria-expanded")!=="true";
+      btn.setAttribute("aria-expanded",o?"true":"false");body.hidden=!o;hint.textContent=o?"收起":"展开";
+      box.setAttribute("data-open",o?"1":"0");
+    });
+    fill(box,[h2,body]);box.hidden=false;
   }
   var curVer="";var popupTried=false;
   function render(d){
