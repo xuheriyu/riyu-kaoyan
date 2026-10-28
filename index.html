@@ -76,6 +76,18 @@ th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertic
 th{background:#f7f8fb;color:#3a4255;font-weight:600;white-space:nowrap}
 tbody tr:hover{background:#fafbfd}
 @media (max-width:640px){header.top h1{font-size:21px}.panel{padding:14px}.dhead{padding:14px}.dbody{padding:12px}}
+
+.notice{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:16px 18px;margin:18px 0 0;box-shadow:0 4px 16px rgba(20,30,60,.05)}
+.notice h2{margin:0 0 10px;font-size:17px}
+.notice ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.notice li{display:flex;gap:10px;font-size:14px;line-height:1.6;align-items:baseline}
+.notice time{color:var(--muted);font-size:13px;white-space:nowrap;flex:none;min-width:84px}
+.notice time:empty{display:none}
+.notice a{color:var(--accent);font-weight:600}
+.notice .contact{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.notice .contact img{width:190px;height:auto;max-width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:4px}
+.notice .contact .ct{font-size:14px;color:var(--ink);line-height:1.7}
+@media (max-width:640px){.notice .contact img{width:170px}}
 </style>
 </head>
 <body>
@@ -110,6 +122,7 @@ tbody tr:hover{background:#fafbfd}
       <button type="button" class="chip" data-f="c2" data-q="翻译">业务课二：翻译</button>
     </div>
   </form>
+  <section class="notice" id="notice" hidden aria-label="公告"></section>
   <p class="summary" id="summary" aria-live="polite"></p>
   <nav aria-label="按地区筛选"><ul class="regions" id="regions"></ul></nav>
   <div id="results" tabindex="-1"></div>
@@ -341,6 +354,55 @@ tbody tr:hover{background:#fafbfd}
   if (p.get('r')) { const g = regions.find(x => x.name === p.get('r')); if (g) regionSel = g.key; }
   run();
   if (p.get('open')) { const s = schoolList.find(x => x.code === p.get('open') || x.name === p.get('open')); if (s) openSchool(s.key); }
+})();
+</script>
+<script>
+(function(){
+  var box=document.getElementById("notice");
+  if(!box) return;
+  var DEFAULT={"show":true,"title":"煦和日语 · 公告","notices":[{"date":"2026-10-28","text":"日语考研院校专业查询系统上线，数据由煦和日语内部整理，供同学参考；报考请以各校官方招生目录为准。"},{"date":"","text":"日语考研择校、备考、课程相关问题，欢迎扫码咨询老师。"}],"contact":{"show":true,"title":"咨询 / 答疑","text":"扫码添加老师微信；手机上可长按二维码识别","caption":"煦和日语老师微信二维码","image":"wechat.jpg"}};
+  function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=String(text);return e;}
+  function safeUrl(u){u=String(u||"").trim();return /^https?:\/\//i.test(u)?u:"";}
+  function render(d){
+    if(!d||d.show===false){box.hidden=true;return;}
+    box.textContent="";
+    var h2=el("h2");var ic=el("span",null,"\uD83D\uDCE2 ");ic.setAttribute("aria-hidden","true");
+    h2.appendChild(ic);h2.appendChild(document.createTextNode(d.title||"公告"));box.appendChild(h2);
+    var list=(d.notices||[]).filter(function(n){return n&&n.text;});
+    if(list.length){
+      var ul=el("ul");
+      list.forEach(function(n){
+        var li=el("li");
+        var t=el("time",null,n.date||"");if(n.date)t.setAttribute("datetime",n.date);li.appendChild(t);
+        var sp=el("span",null,n.text);
+        var href=safeUrl(n.link);
+        if(href){sp.appendChild(document.createTextNode(" "));var a=el("a",null,n.linkText||"查看详情");a.href=href;a.target="_blank";a.rel="noopener noreferrer";sp.appendChild(a);}
+        li.appendChild(sp);ul.appendChild(li);
+      });
+      box.appendChild(ul);
+    }
+    var c=d.contact;
+    if(c&&c.show!==false&&(c.image||c.text||c.title)){
+      var wrap=el("div","contact");
+      if(c.image){
+        var img=el("img");img.src=String(c.image);img.alt=c.caption||"微信二维码";img.loading="lazy";
+        img.onerror=function(){wrap.remove();};
+        wrap.appendChild(img);
+      }
+      var ct=el("div","ct");
+      if(c.title){ct.appendChild(el("strong",null,c.title));ct.appendChild(el("br"));}
+      if(c.text)ct.appendChild(document.createTextNode(c.text));
+      wrap.appendChild(ct);box.appendChild(wrap);
+    }
+    box.hidden=false;
+  }
+  render(DEFAULT);
+  if(location.protocol==="http:"||location.protocol==="https:"){
+    fetch("notices.json?t="+Date.now(),{cache:"no-store"})
+      .then(function(r){if(!r.ok)throw 0;return r.json();})
+      .then(render)
+      .catch(function(){});
+  }
 })();
 </script>
 </body>
