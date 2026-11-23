@@ -263,6 +263,7 @@ select:disabled{opacity:.55}
       <div class="field"><label for="exam">考试方式</label><select id="exam"><option value="">全部</option></select></div>
       <div class="field"><label for="cat">学科门类</label><select id="cat"><option value="">全部门类</option></select></div>
       <div class="field"><label for="dis">一级学科</label><select id="dis" disabled><option value="">先选学科门类</option></select></div>
+      <div class="field"><label for="maj">专业</label><select id="maj" disabled><option value="">先选学科门类</option></select></div>
       <button type="button" class="btn" id="reset">清空条件</button>
     </div>
     <div class="hints"><span>试试：</span>
@@ -388,14 +389,31 @@ select:disabled{opacity:.55}
   const disName = d => DISN[d] || '目录外学科';
   const isPro = d => { const k = +d.slice(2, 4); return k >= 51 && k <= 69; };
   [...new Set([...disAll].map(d => d.slice(0, 2)))].sort().forEach(c => catEl.add(new Option(c + ' ' + (CATN[c] || ''), c)));
+  const majEl = $('maj');
+  const MAJ = new Map();
+  for (const r of recs.concat(cRecs)) {
+    const c = mcode(r[3]); if (!MAJ.has(c)) MAJ.set(c, new Map());
+    const nm = split(S[r[3]]).name, m = MAJ.get(c); m.set(nm, (m.get(nm) || 0) + 1);
+  }
+  const majName = c => { const m = MAJ.get(c); if (!m) return ''; const a = [...m].sort((x, y) => y[1] - x[1]).map(x => x[0]); return a[0] + (a.length > 1 ? ' 等' : ''); };
+  function fillMaj(keep) {
+    const d = disEl.value;
+    majEl.innerHTML = '';
+    if (!d) { majEl.add(new Option(catEl.value ? '先选一级学科' : '先选学科门类', '')); majEl.disabled = true; return; }
+    majEl.disabled = false;
+    majEl.add(new Option('全部专业', ''));
+    [...MAJ.keys()].filter(c => c.startsWith(d)).sort().forEach(c => majEl.add(new Option(c + ' ' + majName(c), c)));
+    if (keep && [...majEl.options].some(o => o.value === keep)) majEl.value = keep;
+  }
   function fillDis(keep) {
     const c = catEl.value;
     disEl.innerHTML = '';
-    if (!c) { disEl.add(new Option('先选学科门类', '')); disEl.disabled = true; return; }
+    if (!c) { disEl.add(new Option('先选学科门类', '')); disEl.disabled = true; fillMaj(); return; }
     disEl.disabled = false;
     disEl.add(new Option('全部一级学科', ''));
     [...disAll].filter(d => d.startsWith(c)).sort().forEach(d => disEl.add(new Option(d + ' ' + disName(d) + (isPro(d) ? '（专硕）' : ''), d)));
     if (keep && [...disEl.options].some(o => o.value === keep)) disEl.value = keep;
+    fillMaj();
   }
   fillDis();
   $('schList').innerHTML = schoolList.map(s => '<option value="' + esc(s.name) + '" data-c="' + esc(s.code) + '">院校代码 ' + esc(s.code) + '</option>').join('');
@@ -410,11 +428,11 @@ select:disabled{opacity:.55}
     const modeIdx = modeEl.value ? S.indexOf(modeEl.value) : -1;
     const examIdx = examEl.value ? S.indexOf(examEl.value) : -1;
     const sTerms = toHalf(schEl.value).split(/[\s,;、]+/).map(norm).filter(Boolean);
-    const catV = catEl.value, disV = disEl.value;
+    const catV = catEl.value, disV = disEl.value, majV = majEl.value;
     filtered = terms.length > 0 || sTerms.length > 0 || modeIdx >= 0 || examIdx >= 0 || !!catV || !!disV;
     basePred = r => (!sTerms.length || sTerms.every(t => NS[r[0]].includes(t))) && (modeIdx < 0 || r[4] === modeIdx) && (examIdx < 0 || r[10] === examIdx) &&
       terms.every(t => cols.some(c => NS[r[c]].includes(t)));
-    const pfx = disV || catV;
+    const pfx = majV || disV || catV;
     pred = pfx ? (r => mcode(r[3]).startsWith(pfx) && basePred(r)) : basePred;
     hlCols = new Set(terms.length ? cols : []);
     hlRe = terms.length
@@ -441,6 +459,7 @@ select:disabled{opacity:.55}
     if (examEl.value) p.set('e', examEl.value);
     if (catEl.value) p.set('k', catEl.value);
     if (disEl.value) p.set('d', disEl.value);
+    if (majEl.value) p.set('z', majEl.value);
     if (rSort !== 'code') p.set('o', rSort);
     if (tab !== 'all') p.set('c', tab);
     if (regionSel !== null) p.set('r', regionMap.get(regionSel).name);
@@ -489,6 +508,20 @@ select:disabled{opacity:.55}
       }
     }
 
+    if (disEl.value) {
+      const zm = new Map(), allS = new Set();
+      for (const r of T.list) {
+        if (!T.test(r) || !basePred(r)) continue;
+        const c = mcode(r[3]); if (!c.startsWith(disEl.value)) continue;
+        if (!zm.has(c)) zm.set(c, new Set());
+        zm.get(c).add(r[0]); allS.add(r[0]);
+      }
+      for (const o of majEl.options) {
+        const c = o.value;
+        if (!c) { o.textContent = '全部专业（' + allS.size + ' 所院校）'; continue; }
+        o.textContent = c + ' ' + majName(c) + '（' + (zm.has(c) ? zm.get(c).size : 0) + ' 所院校）';
+      }
+    }
     const regCount = new Map();
     for (const [k, a] of bySchool) {
       const s = schools.get(k);
@@ -512,7 +545,7 @@ select:disabled{opacity:.55}
 
     // 摘要
     const where0 = regionSel !== null ? `，当前只看 <strong>${esc(regionMap.get(regionSel).name)}</strong>` : '';
-    const catTxt = disEl.value ? `，学科：<strong>${esc(disEl.value + ' ' + disName(disEl.value))}</strong>` : catEl.value ? `，门类：<strong>${esc(catEl.value + ' ' + (CATN[catEl.value] || ''))}</strong>` : '';
+    const catTxt = majEl.value ? `，专业：<strong>${esc(majEl.value + ' ' + majName(majEl.value))}</strong>` : disEl.value ? `，学科：<strong>${esc(disEl.value + ' ' + disName(disEl.value))}</strong>` : catEl.value ? `，门类：<strong>${esc(catEl.value + ' ' + (CATN[catEl.value] || ''))}</strong>` : '';
     const where = catTxt + where0;
     let special = 0;
     for (const k of bySchool.keys()) if (tab === 'cancel' ? !NOW.has(k) : newSchools.has(k)) special++;
@@ -646,7 +679,8 @@ select:disabled{opacity:.55}
   qEl.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 160); });
   [fieldEl, modeEl, examEl].forEach(el => el.addEventListener('change', run));
   catEl.addEventListener('change', () => { fillDis(); run(); });
-  disEl.addEventListener('change', run);
+  disEl.addEventListener('change', () => { fillMaj(); run(); });
+  majEl.addEventListener('change', run);
   document.querySelector('.rbar').addEventListener('click', e => {
     const b = e.target.closest('.rs'); if (!b) return;
     rSort = b.dataset.o; run();
@@ -698,7 +732,7 @@ select:disabled{opacity:.55}
   if (p.get('f') && FIELDS[p.get('f')]) fieldEl.value = p.get('f');
   if (p.get('m')) modeEl.value = p.get('m');
   if (p.get('e')) examEl.value = p.get('e');
-  if (p.get('k')) { catEl.value = p.get('k'); fillDis(p.get('d') || ''); }
+  if (p.get('k')) { catEl.value = p.get('k'); fillDis(p.get('d') || ''); fillMaj(p.get('z') || ''); }
   if (p.get('o') === 'n') rSort = 'n';
   if (p.get('c') && TABS[p.get('c')]) tab = p.get('c');
   if (p.get('r')) { const g = regions.find(x => x.name === p.get('r')); if (g) regionSel = g.key; }
